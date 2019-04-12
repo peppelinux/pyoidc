@@ -82,6 +82,7 @@ setup(
         "requests",
         "pycryptodomex",
         "pyjwkest>=1.3.6",
+        "jwcrypto",
         "mako",
         "beaker",
         "cryptography",

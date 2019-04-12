@@ -2,18 +2,25 @@ import copy
 import json
 import logging
 import warnings
+from base64 import b64encode
 from collections import MutableMapping
 from collections import namedtuple
 from typing import Any  # noqa - This is used for MyPy
+from typing import List  # noqa - This is used for MyPy
 from typing import Mapping  # noqa - This is used for MyPy
 from urllib.parse import parse_qs
 from urllib.parse import urlencode
 
+from jwcrypto.jwk import JWK
+from jwcrypto.jwt import JWT as crypt_JWT
 from jwkest import as_unicode
 from jwkest import b64d
 from jwkest import jwe
 from jwkest import jws
+from jwkest import long_to_base64
 from jwkest.jwe import JWE
+from jwkest.jwk import Key
+from jwkest.jwk import RSAKey
 from jwkest.jwk import keyitems2keyreps
 from jwkest.jws import JWS
 from jwkest.jws import NoSuitableSigningKeys
@@ -119,6 +126,36 @@ def gather_keys(comb, collection, jso, target):
 
     return comb
 
+
+def convert_key_to_jwcrypto(jwkest_key):
+    """Temporary helper to convert key from jwkest to jwcrypto."""
+    temp = jwkest_key.serialize(private=True)
+    if isinstance(jwkest_key, RSAKey):
+        # Recalculate since they are not included in jwkest
+        temp['dp'] = long_to_base64(jwkest_key.d % (jwkest_key.p - 1))
+        temp['dq'] = long_to_base64(jwkest_key.d % (jwkest_key.q - 1))
+        # This only works for primes, which we have...
+        temp['qi'] = long_to_base64(pow(jwkest_key.q, jwkest_key.p - 2, jwkest_key.p))
+    return JWK(**temp)
+
+
+def pick_keys(keys: List[Key], alg: str) -> Key:
+    """Pick correct key based on alg.
+
+    Returns first key for now. Might get redone after complete switch to jwcrypto.
+    """
+    if alg.startswith("RS") or alg.startswith("PS"):
+        key_type = "RSA"
+    elif alg.startswith("HS") or alg.startswith("A"):
+        key_type = "oct"
+    elif alg.startswith("ES") or alg.startswith("ECDH-ES"):
+        key_type = "EC"
+    else:
+        return None
+    for key in keys:
+        if key.kty == key_type:
+            return key
+    return None
 
 def swap_dict(dic):
     return dict([(val, key) for key, val in dic.items()])
@@ -451,8 +488,23 @@ class Message(MutableMapping):
         :param algorithm: The signature algorithm to use
         :return: A signed JWT
         """
-        _jws = JWS(self.to_json(lev), alg=algorithm)
-        return _jws.sign_compact(key)
+        # FIXME: This can be removed once the keys are in jwcrypto format as well
+        picked_key = pick_keys(key, algorithm)
+        if picked_key is None:
+            headers = {'alg': 'none'}
+        else:
+            k = convert_key_to_jwcrypto(picked_key)
+            headers = {'alg': picked_key.alg or algorithm}
+
+        _jws = crypt_JWT(claims=self.to_json(lev), header=headers)
+        if picked_key is not None:
+            _jws.make_signed_token(k)
+            return _jws.serialize()
+        else:
+            # Pack manually - jwcrypto has no support for this
+            header = b64encode(_jws.header.encode()).decode().rstrip("=")
+            payload = b64encode(_jws.claims.encode()).decode().rstrip("=")
+            return header + "." + payload
 
     def _add_key(self, keyjar, issuer, key, key_type='', kid='',
                  no_kid_issuer=None):
