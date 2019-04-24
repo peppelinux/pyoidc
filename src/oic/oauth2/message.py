@@ -13,6 +13,8 @@ from urllib.parse import urlencode
 
 from jwcrypto.jwk import JWK
 from jwcrypto.jwt import JWT as crypt_JWT
+from jwcrypto.jws import JWS as crypt_JWS
+from jwcrypto.jwe import JWE as crypt_JWE
 from jwkest import as_unicode
 from jwkest import b64d
 from jwkest import jwe
@@ -130,7 +132,7 @@ def gather_keys(comb, collection, jso, target):
 def convert_key_to_jwcrypto(jwkest_key):
     """Temporary helper to convert key from jwkest to jwcrypto."""
     temp = jwkest_key.serialize(private=True)
-    if isinstance(jwkest_key, RSAKey):
+    if isinstance(jwkest_key, RSAKey) and jwkest_key.d != '':
         # Recalculate since they are not included in jwkest
         temp['dp'] = long_to_base64(jwkest_key.d % (jwkest_key.p - 1))
         temp['dq'] = long_to_base64(jwkest_key.d % (jwkest_key.q - 1))
@@ -629,6 +631,24 @@ class Message(MutableMapping):
         :param kwargs: Extra key word arguments
         :return: A class instance
         """
+        _crypt_jw = crypt_JWT(jwt=txt)
+        if isinstance(_crypt_jw.token, crypt_JWE):
+            # First decrypt the token ...
+            pass
+        if isinstance(_crypt_jw.token, crypt_JWS):
+            # Verify the signature of the token
+            _crypt_kid = _crypt_jw.token.jose_header.get("kid")
+            if _crypt_kid is not None:
+                __import__('pdb').set_trace()
+                # FIXME: jwcrypt does not allow to access unverified payload directly
+                key = keyjar.get_key_by_kid(_crypt_kid, json.loads(_crypt_jw.token.objects['payload']).get('iss'))
+                key = convert_key_to_jwcrypto(key)
+            # FIXME: Cannot we get it from the existing object?
+            _crypt_jw = crypt_JWT(key=key, jwt=txt)
+            self.jwt = txt
+            self.jws_header = _crypt_jw.header
+            return self.from_json(_crypt_jw.claims)
+
         _jw = jwe.factory(txt)
         if _jw:
             logger.debug("JWE headers: {}".format(_jw.jwt.headers))
