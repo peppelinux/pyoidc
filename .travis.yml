@@ -39,6 +39,9 @@ matrix:
       env: TOXENV=py37
     - install:
         - docker-compose -f docker/docker-compose.yml up -d
+      before_script:
+          - while ! curl -k https://op:4433 > /dev/null; do sleep 2; done
+          - while ! curl -k https://op-test:60000 > /dev/null; do sleep 2; done
       script:
         - docker build docker/integration_tests -t oidctest-local
         - docker run --net=host --name=oidctest-it -d oidctest-local
