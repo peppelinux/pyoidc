@@ -1,9 +1,6 @@
-import inspect
 import json
 import logging
-import sys
 import time
-import warnings
 from typing import Dict  # noqa
 from typing import List  # noqa
 from urllib.parse import urlencode
@@ -1118,58 +1115,6 @@ class FrontChannelLogoutRequest(Message):
     """Defines the message used in https://openid.net/specs/openid-connect-frontchannel-1_0.html ."""
 
     c_param = {"iss": SINGLE_OPTIONAL_STRING, "sid": SINGLE_OPTIONAL_STRING}
-
-
-MSG = {
-    "RefreshAccessTokenRequest": RefreshAccessTokenRequest,
-    "TokenErrorResponse": TokenErrorResponse,
-    "AccessTokenResponse": AccessTokenResponse,
-    "UserInfoRequest": UserInfoRequest,
-    "AuthorizationResponse": AuthorizationResponse,
-    "AuthorizationErrorResponse": AuthorizationErrorResponse,
-    "AuthorizationRequest": AuthorizationRequest,
-    "AccessTokenRequest": AccessTokenRequest,
-    "AddressClaim": AddressClaim,
-    "OpenIDSchema": OpenIDSchema,
-    "RegistrationRequest": RegistrationRequest,
-    "RegistrationResponse": RegistrationResponse,
-    "ClientRegistrationErrorResponse": ClientRegistrationErrorResponse,
-    "IdToken": IdToken,
-    "RefreshSessionRequest": RefreshSessionRequest,
-    "RefreshSessionResponse": RefreshSessionResponse,
-    "CheckSessionRequest": CheckSessionRequest,
-    "CheckIDRequest": CheckIDRequest,
-    "EndSessionRequest": EndSessionRequest,
-    "EndSessionResponse": EndSessionResponse,
-    "Claims": Claims,
-    "OpenIDRequest": OpenIDRequest,
-    "ProviderConfigurationResponse": ProviderConfigurationResponse,
-    "AuthnToken": AuthnToken,
-    "UserInfoErrorResponse": UserInfoErrorResponse,
-    "DiscoveryRequest": DiscoveryRequest,
-    "DiscoveryResponse": DiscoveryResponse,
-    "ResourceRequest": ResourceRequest,
-    # LOGOUT messages
-    "LogoutToken": LogoutToken,
-    "BackChannelLogoutRequest": BackChannelLogoutRequest,
-    "FrontChannelLogoutRequest": FrontChannelLogoutRequest,
-}
-
-
-def factory(msgtype):
-    warnings.warn(
-        "`factory` is deprecated. Use `OIDCMessageFactory` instead.", DeprecationWarning
-    )
-    for _, obj in inspect.getmembers(sys.modules[__name__]):
-        if inspect.isclass(obj) and issubclass(obj, Message):
-            try:
-                if obj.__name__ == msgtype:
-                    return obj
-            except AttributeError:
-                pass
-
-    # Fall back to basic OAuth2 messages
-    return message.factory(msgtype)
 
 
 class OIDCMessageFactory(MessageFactory):

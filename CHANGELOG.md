@@ -9,8 +9,10 @@ The format is based on the [KeepAChangeLog] project.
 
 ### Removed
 - [#671] Removed deprecated request/response_cls kwargs from Provider/Client methods
+- [#676] Removed deprecated message factory and related stuff
 
 [#671]: https://github.com/OpenIDC/pyoidc/pull/XXX
+[#676]: https://github.com/OpenIDC/pyoidc/pull/676
 
 ## 1.0.1 [2019-06-30]
 
